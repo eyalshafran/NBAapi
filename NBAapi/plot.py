@@ -67,9 +67,7 @@ def court(ax=None, color='black', lw=4, outer_lines=False,direction='up'):
                                 linewidth=lw, color=color)
         center_inner_arc = Arc((0, 41.25), 4, 4, theta1=180, theta2=0,
                                 linewidth=lw, color=color)
-        court_elements.append(outer_lines)
-        court_elements.append(center_outer_arc)
-        court_elements.append(center_inner_arc)
+        court_elements = court_elements + [outer_lines,center_outer_arc,center_inner_arc]
     else:
         plt.plot([-25,25],[-5.25,-5.25],linewidth=lw,color=color)
     # Add the court elements onto the axes
