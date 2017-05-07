@@ -2,21 +2,28 @@
 from matplotlib.patches import Circle, Rectangle, Arc
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+from scipy import misc
+import urllib, cStringIO
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
+from matplotlib.colors import LinearSegmentedColormap
 
 def court(ax=None, color='black', lw=4, outer_lines=False,direction='up'):
     '''
     Plots an NBA court
     outer_lines - accepts False or True. Plots the outer side lines of the court.
+    direction - 'up' or 'down' depending on how you like to view the court
     Original function from http://savvastjortjoglou.com/
     '''
     # If an axes object isn't provided to plot onto, just get current one
     if ax is None:
         if direction=='up':
             ax = plt.gca(xlim = [-30,30],ylim = [43,-7],xticks=[],yticks=[],aspect=1.0)
-            plt.text(22,44,'By: Doingthedishes',color='blue',horizontalalignment='center',fontsize=20)
+            plt.text(22,44,'By: Doingthedishes',color='black',horizontalalignment='center',fontsize=20,fontweight='bold')
         elif direction=='down':
             ax = plt.gca(xlim = [30,-30],ylim = [-7,43],xticks=[],yticks=[],aspect=1.0)
-            plt.text(-22,-7,'By: Doingthedishes',color='blue',horizontalalignment='center',fontsize=20)
+            plt.text(-22,-7,'By: Doingthedishes',color='black',horizontalalignment='center',fontsize=20,fontweight='bold')
         else:
             ax = plt.gca()
     # Create the various parts of an NBA basketball court
@@ -79,7 +86,7 @@ def court(ax=None, color='black', lw=4, outer_lines=False,direction='up'):
 def zones(**kwargs):
     '''
     Plots zones on the court as per NBA.com
-    the plot add to the last plot used or starts a new figure
+    the plot adds to the last plot used or starts a new figure
     '''
     ax = plt.gca()
     zone1 = Arc((0, 0), 16.0, 16.0,theta1 = -41.0,theta2 = 180.0+41.0,**kwargs)
@@ -171,3 +178,140 @@ def text_in_zone(string,zone,box_alpha = 0.75,**kwargs):
             t = plt.text(0,39,string,horizontalalignment='center',verticalalignment='center',**kwargs)
             t.set_bbox(dict(color='white', alpha=box_alpha))
 
+def players_picture(player_id):
+    URL = "http://stats.nba.com/media/players/230x185/%d.png" %player_id
+    file = cStringIO.StringIO(urllib.urlopen(URL).read())
+    return misc.imread(file)
+
+def grantland_shotchart(shotchart,leagueavergae):
+    LA = leagueavergae.loc[:,'SHOT_ZONE_AREA':'FGM'].groupby(['SHOT_ZONE_RANGE','SHOT_ZONE_AREA']).sum()
+    LA['FGP'] = 1.0*LA['FGM']/LA['FGA']
+    player = shotchart.groupby(['SHOT_ZONE_RANGE','SHOT_ZONE_AREA','SHOT_MADE_FLAG']).size().unstack(fill_value=0)
+    player['FGP'] = 1.0*player.loc[:,1]/player.sum(axis=1)
+    player_vs_league = (player.loc[:,'FGP'] - LA.loc[:,'FGP'])*100
+    x,y = 1.0*shotchart.LOC_X.values/10, 1.0*shotchart.LOC_Y.values/10
+    plt.figure(figsize=(15,12.5),facecolor='white')
+    ax = court(outer_lines=False)
+    ax.axis('off')
+    poly_hexbins = plt.hexbin(x,y, gridsize=35, extent=[-25,25,-6.25,50-6.25])
+    counts = poly_hexbins.get_array()
+    verts = poly_hexbins.get_offsets()
+    plt.colorbar()
+    plt.close()
+    plt.figure(figsize=(14,11.67),facecolor='white') #(0,0.17,0.57)
+    ax = plt.gca(xlim = [30,-30],ylim = [-10,40],xticks=[],yticks=[],aspect=1.0)
+    plt.text(0,-7,'By: Doingthedishes',color='black',horizontalalignment='center',fontsize=20,fontweight='bold')
+    court(ax,outer_lines=False,color='black',lw=4.0,direction='down')
+    ax.axis('off')
+    #nba.plot.zones()
+    #s=0.8747731368853422
+    s = 0.85
+    bins = np.concatenate([[-np.inf],np.linspace(-9,9,8),[np.inf]])
+    colors = [(0.66, 0.75, 0.66),(0.9,1.0,0.6), (0.8, 0, 0)]
+    cm = LinearSegmentedColormap.from_list('my_list', colors, N=len(bins)-1)
+    xy = s*np.array([np.cos(np.linspace(np.pi/6,np.pi*330/180,6)),np.sin(np.linspace(np.pi/6,np.pi*330/180,6))]).T
+    b = np.zeros((6,2))
+    counts_norm = np.zeros_like(counts)
+    counts_norm[counts>=5] = 1
+    counts_norm[(counts>=2) & (counts<5)] = 0.5
+    counts_norm[(counts>=1) & (counts<2)] = 0.3
+    patches=[]
+    colors=[]
+    for offc in xrange(verts.shape[0]):
+        if counts_norm[offc] != 0:
+            xc,yc = verts[offc][0],verts[offc][1] 
+            b[:,0] = xy[:,0]*counts_norm[offc] + xc
+            b[:,1] = xy[:,1]*counts_norm[offc] + yc
+            p_diff = player_vs_league.loc[shot_zone(xc,yc)]
+            inds = np.digitize(p_diff, bins,right=True)-1
+            patches.append(Polygon(b))
+            colors.append(inds)
+          
+    for i in range(len(bins)-1):
+        xc = 23-2*0.76*i
+        yc = -7
+        b[:,0] = xy[:,0] + xc
+        b[:,1] = xy[:,1] + yc
+        patches.append(Polygon(b))
+        colors.append(i)
+    plt.text(23,-8.5,'Cold',horizontalalignment='center',verticalalignment='center')
+    plt.text(23-2*0.76*(len(bins)-2),-8.5,'Hot',horizontalalignment='center',verticalalignment='center')
+    
+    xc = -14.5
+    yc = -7.0
+    plt.text(xc,-8.5,'Less',horizontalalignment='center',verticalalignment='center')
+    b[:,0] = xy[:,0]*0.3 + xc
+    b[:,1] = xy[:,1]*0.3 + yc
+    patches.append(Polygon(b))
+    colors.append(2)
+    xc = -16
+    b[:,0] = xy[:,0]*0.60 + xc
+    b[:,1] = xy[:,1]*0.60 + yc
+    patches.append(Polygon(b))
+    colors.append(2)
+    xc = -18
+    b[:,0] = xy[:,0] + xc
+    b[:,1] = xy[:,1] + yc
+    plt.text(xc,-8.5,'More',horizontalalignment='center',verticalalignment='center')
+    
+    patches.append(Polygon(b))
+    colors.append(2)
+    p = PatchCollection(patches,cmap=cm,alpha=1)
+    p.set_array(np.array(colors))
+    ax.add_collection(p)
+    p.set_clim([0, len(bins)-1])
+    
+    pic = players_picture(shotchart.loc[0,'PLAYER_ID'])
+    plt.imshow(pic,extent=[15,25,30,37.8261])
+    plt.text(20,29,shotchart.loc[0,'PLAYER_NAME'],fontsize=16,horizontalalignment='center',verticalalignment='center')
+    
+def shot_zone(X,Y):
+    '''
+    Uses shot coordinates x and y (in feet - divide by 10 if using the shotchart units)
+    and returns a tuple with the zone location
+    '''
+    r = np.sqrt(X**2+Y**2)
+    a = np.arctan2(Y,X)*180.0/np.pi
+    if (Y<0) & (X > 0):
+        a = 0
+    elif (Y<0) & (X < 0):
+        a = 180
+    if r<=8:
+        z = ('Less Than 8 ft.','Center(C)')
+    elif (r>8) & (r<=16):
+        if a < 60:
+            z = ('8-16 ft.','Right Side(R)')
+        elif (a>=60) & (a<=120):
+            z = ('8-16 ft.','Center(C)')
+        else:
+            z = ('8-16 ft.','Left Side(L)')
+    elif (r>16) & (r<=23.75):
+        if a < 36:
+            z = ('16-24 ft.','Right Side(R)')
+        elif (a>=36) & (a<72):
+            z = ('16-24 ft.','Right Side Center(RC)')
+        elif (a>=72) & (a<=108):
+            z = ('16-24 ft.','Center(C)')
+        elif (a>108) & (a<144):
+            z = ('16-24 ft.','Left Side Center(LC)')
+        else:
+            z = ('16-24 ft.','Left Side(L)')
+    elif r>23.75:
+        if a < 72:
+            z = ('24+ ft.','Right Side Center(RC)')
+        elif (a>=72) & (a<=108):
+            z = ('24+ ft.','Center(C)')
+        else:
+            z = ('24+ ft.','Left Side Center(LC)')
+    if (np.abs(X)>=22):
+        if (X > 0) & (np.abs(Y)<8.75):
+            z = ('24+ ft.','Right Side(R)')
+        elif (X < 0) & (np.abs(Y)<8.75):
+            z = ('24+ ft.','Left Side(L)')
+        elif (X > 0) & (np.abs(Y)>=8.75):
+            z = ('24+ ft.','Right Side Center(RC)')
+        elif (X < 0) & (np.abs(Y)>=8.75):
+            z = ('24+ ft.','Left Side Center(LC)')
+    if Y >= 40:
+        z = ('Back Court Shot', 'Back Court(BC)')
+    return z

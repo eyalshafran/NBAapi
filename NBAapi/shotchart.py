@@ -7,6 +7,12 @@ def shotchartdetail(leagueid='00',season='2016-17',seasontype='Regular Season',t
                     seasonseg='',datefrom='',dateto='',oppteamid=0,vsconf='',
                     vsdiv='',pos='',gameseg='',per=0,lastngames=0,aheadbehind='',
                     contextmeasure='FGM',clutchtime='',rookieyear=''):
+    '''
+    Access to NBA API - http://stats.nba.com/stats/shotchartdetail
+    Returns the shotchart requested and the leagueaverage
+    Example:
+    shot_data,leagueaverage = shotchartdetail(season='2016-17')
+    '''
     url = 'http://stats.nba.com/stats/shotchartdetail?'
     api_param = {
          'LeagueID': leagueid,
@@ -40,53 +46,4 @@ def shotchartdetail(leagueid='00',season='2016-17',seasontype='Regular Season',t
     LeagueAverage = pd.DataFrame(data['resultSets'][1]['rowSet'],columns=data['resultSets'][1]['headers'])
     return Shot_Chart_Detail,LeagueAverage
     
-def shot_zone(X,Y):
-    '''
-    Uses shot coordinates x and y (in feet - divide by 10 if using the shotchart units)
-    and returns a tuple with the zone location
-    '''
-    r = np.sqrt(X**2+Y**2)
-    a = np.arctan2(Y,X)*180.0/np.pi
-    if (Y<0) & (X > 0):
-        a = 0
-    elif (Y<0) & (X < 0):
-        a = 180
-    if r<=8:
-        z = ('Less Than 8 ft.','Center(C)')
-    elif (r>8) & (r<=16):
-        if a < 60:
-            z = ('8-16 ft.','Right Side(R)')
-        elif (a>=60) & (a<=120):
-            z = ('8-16 ft.','Center(C)')
-        else:
-            z = ('8-16 ft.','Left Side(L)')
-    elif (r>16) & (r<=23.75):
-        if a < 36:
-            z = ('16-24 ft.','Right Side(R)')
-        elif (a>=36) & (a<72):
-            z = ('16-24 ft.','Right Side Center(RC)')
-        elif (a>=72) & (a<=108):
-            z = ('16-24 ft.','Center(C)')
-        elif (a>108) & (a<144):
-            z = ('16-24 ft.','Left Side Center(LC)')
-        else:
-            z = ('16-24 ft.','Left Side(L)')
-    elif r>23.75:
-        if a < 72:
-            z = ('24+ ft.','Right Side Center(RC)')
-        elif (a>=72) & (a<=108):
-            z = ('24+ ft.','Center(C)')
-        else:
-            z = ('24+ ft.','Left Side Center(LC)')
-    if (np.abs(X)>=22):
-        if (X > 0) & (np.abs(Y)<8.75):
-            z = ('24+ ft.','Right Side(R)')
-        elif (X < 0) & (np.abs(Y)<8.75):
-            z = ('24+ ft.','Left Side(L)')
-        elif (X > 0) & (np.abs(Y)>=8.75):
-            z = ('24+ ft.','Right Side Center(RC)')
-        elif (X < 0) & (np.abs(Y)>=8.75):
-            z = ('24+ ft.','Left Side Center(LC)')
-    if Y >= 40:
-        z = ('Back Court Shot', 'Back Court(BC)')
-    return z
+
