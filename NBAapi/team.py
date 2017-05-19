@@ -67,6 +67,18 @@ def commonteamyears(leagueid='00'):
     response = requests.get(url,params=api_param,headers={"USER-AGENT":u_a})
     data = response.json()
     return pd.DataFrame(data['resultSets'][0]['rowSet'],columns=data['resultSets'][0]['headers'])
+
+def roster(teamid,season='2016-17',leagueid='00'):
+    url = 'http://stats.nba.com/stats/commonteamroster?'
+    api_param = {
+        'LeagueID' : leagueid,
+        'Season' : season,
+        'teamID' : teamid,              
+    }
+    u_a = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.82 Safari/537.36"
+    response = requests.get(url,params=api_param,headers={"USER-AGENT":u_a})
+    data = response.json()
+    return pd.DataFrame(data['resultSets'][0]['rowSet'],columns=data['resultSets'][0]['headers'])    
     
     
 

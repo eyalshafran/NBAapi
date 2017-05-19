@@ -5,7 +5,7 @@ from setuptools import setup
 #        return f.read()
         
 setup(name='NBAapi',
-      version='0.3',
+      version='0.4',
       description='Load data from NBA api',
       url='https://github.com/eyalshafran/NBA/NBAapi',
       author='Eyal Shafran',
