@@ -189,7 +189,7 @@ def players_picture(player_id):
     file = cStringIO.StringIO(urllib.urlopen(URL).read())
     return misc.imread(file)
 
-def grantland_shotchart(shotchart,leagueavergae,ax=None,short_three=False):
+def grantland_shotchart(shotchart,leagueavergae,ax=None,short_three=False,fg_range=[-9,9]):
     LA = leagueavergae.loc[:,'SHOT_ZONE_AREA':'FGM'].groupby(['SHOT_ZONE_RANGE','SHOT_ZONE_AREA']).sum()
     LA['FGP'] = 1.0*LA['FGM']/LA['FGA']
     player = shotchart.groupby(['SHOT_ZONE_RANGE','SHOT_ZONE_AREA','SHOT_MADE_FLAG']).size().unstack(fill_value=0)
@@ -210,7 +210,7 @@ def grantland_shotchart(shotchart,leagueavergae,ax=None,short_three=False):
     #nba.plot.zones()
     #s=0.8747731368853422
     s = 0.85
-    bins = np.concatenate([[-np.inf],np.linspace(-9,9,200),[np.inf]])
+    bins = np.concatenate([[-np.inf],np.linspace(fg_range[0],fg_range[1],200),[np.inf]])
     colors = [(0.66, 0.75, 0.66),(0.9,1.0,0.6), (0.8, 0, 0)]
     cm = LinearSegmentedColormap.from_list('my_list', colors, N=len(bins)-1)
     xy = s*np.array([np.cos(np.linspace(np.pi/6,np.pi*330/180,6)),np.sin(np.linspace(np.pi/6,np.pi*330/180,6))]).T
@@ -374,3 +374,56 @@ def shot_zone_short_three(X,Y):
     if Y >= 40:
         z = ('Back Court Shot', 'Back Court(BC)')
     return z
+
+def shot_heatmap(df,sigma = 1,log=False,player_pic=True,ax=None,cmap='jet'):
+    '''
+    This function plots a heatmap based on the shot chart.
+    input - dataframe with x and y coordinates.
+    optional - log (default false) plots heatmap in log scale. 
+               player (default true) adds player's picture and name if true 
+               sigma - the sigma of the Gaussian kernel. In feet (default=1)
+    '''
+    n,_,_ = np.histogram2d( 0.1*df['LOC_X'].values, 0.1*df['LOC_Y'].values,bins = [500, 500],range = [[-25,25],[-5.25,44.75]])
+    KDE = ndimage.filters.gaussian_filter(n,10.0*sigma)
+    N = 1.0*KDE/np.sum(KDE)
+    if ax is None:
+        ax = plt.gca(xlim = [30,-30],ylim = [-7,43],xticks=[],yticks=[],aspect=1.0)
+    court(ax,outer_lines=True,color='black',lw=2.0,direction='down')
+    ax.axis('off')
+    if log:
+        ax.imshow(np.rot90(np.log10(N+1)),cmap=cmap,extent=[25.0, -25.0, -5.25, 44.75])
+    else:
+        ax.imshow(np.rot90(N),cmap=cmap,extent=[25.0, -25.0, -5.25, 44.75])
+    if player_pic:
+        player_id = df.PLAYER_ID.values[0]
+        pic = players_picture(player_id)
+        ax.imshow(pic,extent=[15,25,30,37.8261])
+    ax.text(0,-7,'By: Doingthedishes',color='white',horizontalalignment='center',fontsize=20,fontweight='bold')
+    
+def shot_scatter(df,player_pic=True,ax=None,noise=True,**kwargs):
+    '''
+    Plotting scatter plot of shots.
+    input - dataframe with x and y coordinates.
+    optional - player_pic (default True) loads player picture. Use if dataframe is for a single player. 
+               ax (default None) can pass plot axis.
+               noise (default True) adds some random scatter to the data for better visualization  
+               other - any variables that can be passed into the scatter function (e.g. transperecy value)
+    '''
+    if ax is None: 
+        ax = plt.gca(xlim = [30,-30],ylim = [-7,43],xticks=[],yticks=[],aspect=1.0)
+    court(ax,outer_lines=True,color='black',lw=2.0,direction='down')
+    ax.axis('off')
+    if noise:
+        X = df.LOC_X.values + np.random.normal(loc=0.0, scale=1.5, size=len(df.LOC_X.values))
+        Y = df.LOC_Y.values + np.random.normal(loc=0.0, scale=1.5, size=len(df.LOC_Y.values))
+    else:
+        X = df.LOC_X.values
+        Y = df.LOC_Y.values
+    ax.scatter(-0.1*X,0.1*Y,**kwargs)
+    if player_pic:
+        name = df.PLAYER_NAME.values[0]
+        player_id = df.PLAYER_ID.values[0]
+        pic = players_picture(player_id)
+        ax.imshow(pic,extent=[15,25,30,37.8261])
+        ax.text(20,29,name,fontsize=16,horizontalalignment='center',verticalalignment='center')
+    ax.text(0,-7,'By: Doingthedishes',color='black',horizontalalignment='center',fontsize=20,fontweight='bold')
