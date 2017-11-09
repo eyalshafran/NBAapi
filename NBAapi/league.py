@@ -64,7 +64,7 @@ def hustlestatsteam(College='',Conference='',Country='',DateFrom='',DateTo='',Di
         'Weight' : Weight
         }
     u_a = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.82 Safari/537.36"
-    response = requests.get(url,params=api_param,headers={"USER-AGENT":u_a})
+    response = requests.get(url,params=api_param,headers={"USER-AGENT":u_a},timeout=1.0)
     data = response.json()
     return pd.DataFrame(data['resultSets'][0]['rowSet'],columns=data['resultSets'][0]['headers'])
     
@@ -76,6 +76,6 @@ def playbyplayv2(gameid,startperiod=0,endperiod=0):
         'GameID' : gameid,           
     }
     u_a = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.82 Safari/537.36"
-    response = requests.get(url,params=api_param,headers={"USER-AGENT":u_a})
+    response = requests.get(url,params=api_param,headers={"USER-AGENT":u_a},timeout=1.0)
     data = response.json()
     return pd.DataFrame(data['resultSets'][0]['rowSet'],columns=data['resultSets'][0]['headers'])
